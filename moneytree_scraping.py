@@ -8,6 +8,9 @@ tokenという変数へ入力します。
 
 # Usage
 
+## コマンドラインからすべてのデータをjsonとしてカレントディレクトリに保存する
+$ python moneytree_scraping.py {token}
+
 ## import
 from moneytree_scraping import Moneytree
 
@@ -47,8 +50,19 @@ print(json.dumps(account_balances, indent=4, ensure_ascii=False))
 # JSONエンドポイントの種類
 * /transactions.json: 明細
 * /data_snapshot.json: アカウントのサブスクタイプや最後の口座情報が乗っている
+
+# get_transaction
+json_data = get(
+    API.TRANSACTION,
+    end_date="06/30/2023",
+    start_date="06/01/2023",
+    per_page=500,  # 500より大きい数値を入れると400エラー
+)
+print(json.dumps(json_data, indent=4, ensure_ascii=False))
+print(len(json_data["transactions"]))
 """
 import json
+import sys
 from types import SimpleNamespace
 from typing import Optional
 from enum import Enum
@@ -493,22 +507,20 @@ def download(token: str):
     mt = Moneytree(token)
     start_date, end_date = "2000-01-01", "2100-12-31"
     for item in API.__members__.values():
-        data = mt.get(item, start_date=start_date, end_date=end_date).json()
-        print(data)
+        resp = mt.get(item, start_date=start_date, end_date=end_date)
+        resp.raise_for_status()
+        print(resp.indented_json())
+
+        # インデント無しで保存
+        # import json
+        # with open("data/spending.json", "w") as f:
+        #     json.dump(resp.json(), f)
+        # インデント付きで保存
         with open(f'{item.name.lower()}.json', 'w') as f:
-            json.dump(data, f)
+            f.write(resp.indented_json())
 
 
-if __name__ == "__main__":
-    # json_data = get_transaction(
-    #     end_date="06/30/2023",
-    #     start_date="06/01/2023",
-    #     per_page=500,  # 500より大きい数値を入れると400エラー
-    # )
-    # print(json.dumps(json_data, indent=4, ensure_ascii=False))
-    # print(len(json_data["transactions"]))
-
-    # login
+def donwload_cach_flow():
     with open("./bearer_token", mode="r", encoding="utf-8") as f:
         token = f.readline().replace("\n", "", -1).replace("Bearer ", "")
 
@@ -522,3 +534,8 @@ if __name__ == "__main__":
 
     # object JSON
     print(cashflow.object())
+
+
+if __name__ == "__main__":
+    token = sys.argv[-1]
+    download(token)
